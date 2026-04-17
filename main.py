@@ -86,7 +86,7 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
             insertion_point = block['insertion_point']
 
             # 创建 Phantom 的 HTML 内容
-            # 使用 var(--foreground) 和 alpha 透明度，使颜色更浅且自动适配深浅主题
+            # 优化了现代化的 UI 样式：无衬线字体、更柔和的圆角、更舒展的内边距
             content = '''
                 <body id="markdown-code-exporter">
                     <style>
@@ -95,28 +95,30 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
                             padding: 0;
                         }
                         .actions {
-                            margin-left: 1.5rem;
-                            font-size: 0.85rem;
+                            margin-left: 20px;
+                            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                            font-size: 12px;
+                            line-height: 1;
                         }
                         a {
-                            padding: 0.15rem 0.5rem;
-                            margin-right: 0.4rem;
+                            padding: 2px 12px;
+                            margin-right: 8px;
                             border-radius: 4px;
-                            border: 1px solid color(var(--foreground) alpha(0.15));
-                            color: var(--foreground);
-                            background-color: color(var(--foreground) alpha(0.05));
+                            border: 1px solid color(var(--foreground) alpha(0.1));
+                            color: color(var(--foreground) alpha(0.8));
+                            background-color: color(var(--foreground) alpha(0.04));
                             text-decoration: none;
+                            font-weight: bold;
                         }
                     </style>
                     <div class="actions">
-                        <a href="copy">copy</a>
-                        <a href="new_tab">open in tab</a>
+                        <a href="copy">Copy</a>
+                        <a href="new_tab">Open in Tab</a>
                     </div>
                 </body>
             '''
 
             # 创建并添加 Phantom
-            # 使用 LAYOUT_INLINE 将按钮追加在 ``` 语言名称的同一行末尾，防止画面上下跳动
             phantom = sublime.Phantom(
                 sublime.Region(insertion_point, insertion_point),
                 content,
@@ -170,7 +172,7 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
             # 尝试检测并设置语法高亮
             identifier = re.sub(r"^ *`+", "", lines[0]).strip().lower()
 
-            id_syntax_map =[
+            id_syntax_map = [
                 {
                     "identifier": ["md", "markdown", "mdown"],
                     "syntaxes":[
@@ -182,8 +184,8 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
                     ],
                 },
                 {
-                    "identifier": ["js", "javascript"],
-                    "syntaxes": [
+                    "identifier":["js", "javascript"],
+                    "syntaxes":[
                         "Packages/JavaScript/JavaScript.sublime-syntax",
                     ],
                 },
@@ -195,25 +197,25 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
                 },
                 {
                     "identifier": ["java"],
-                    "syntaxes": [
+                    "syntaxes":[
                         "Packages/Java/Java.sublime-syntax",
                     ],
                 },
                 {
                     "identifier": ["php"],
-                    "syntaxes":[
+                    "syntaxes": [
                         "Packages/PHP/PHP.sublime-syntax",
                     ],
                 },
                 {
-                    "identifier":["py", "python"],
+                    "identifier": ["py", "python"],
                     "syntaxes":[
                         "Packages/Python/Python.sublime-syntax",
                     ],
                 },
                 {
                     "identifier": ["rb", "ruby"],
-                    "syntaxes": [
+                    "syntaxes":[
                         "Packages/Ruby/Ruby.sublime-syntax",
                     ],
                 },
@@ -225,7 +227,7 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
                 },
                 {
                     "identifier": ["sql"],
-                    "syntaxes":[
+                    "syntaxes": [
                         "Packages/SQL/SQL.sublime-syntax",
                     ],
                 },
