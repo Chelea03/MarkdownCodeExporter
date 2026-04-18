@@ -18,6 +18,8 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
         
         # 用于记录当前处于激活状态（鼠标悬停或光标所在）的代码块索引
         self.active_blocks = set()
+        # 用于记录刚刚被点击了 "Copy" 的代码块索引，以提供视觉反馈
+        self.copied_blocks = set()
 
         self.update_active_blocks(force_update=True)
 
@@ -85,45 +87,64 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
             region = block['region']
             insertion_point = block['insertion_point']
 
+            # 检查当前代码块是否处于 "已复制" 状态
+            is_copied = i in self.copied_blocks
+
+            if is_copied:
+                copy_text = "Copied!"
+                # 复制成功后的样式：背景加深，文字反色（使用背景色作为文字色）
+                copy_style = "color: var(--background); background-color: color(var(--foreground) alpha(0.7)); border-color: color(var(--foreground) alpha(0.7));"
+            else:
+                copy_text = "Copy"
+                # 默认样式
+                copy_style = "color: color(var(--foreground) alpha(0.8)); background-color: color(var(--foreground) alpha(0.04)); border-color: color(var(--foreground) alpha(0.1));"
+
             # 创建 Phantom 的 HTML 内容
-            # 优化了现代化的 UI 样式：无衬线字体、更柔和的圆角、更舒展的内边距
+            # 注意：使用 .format() 时，CSS 中的大括号需要双写 {{ 和 }} 进行转义
             content = '''
                 <body id="markdown-code-exporter">
                     <style>
-                        html, body {
+                        html, body {{
                             margin: 0;
                             padding: 0;
-                        }
-                        .actions {
+                        }}
+                        .actions {{
                             margin-left: 20px;
                             font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
                             font-size: 12px;
                             line-height: 1;
-                        }
-                        a {
+                        }}
+                        a {{
                             padding: 2px 12px;
                             margin-right: 8px;
                             border-radius: 4px;
-                            border: 1px solid color(var(--foreground) alpha(0.1));
-                            color: color(var(--foreground) alpha(0.8));
-                            background-color: color(var(--foreground) alpha(0.04));
                             text-decoration: none;
                             font-weight: bold;
-                        }
+                            border: 1px solid;
+                        }}
+                        a.copy-btn {{
+                            {copy_style}
+                        }}
+                        a.tab-btn {{
+                            color: color(var(--foreground) alpha(0.8));
+                            background-color: color(var(--foreground) alpha(0.04));
+                            border-color: color(var(--foreground) alpha(0.1));
+                        }}
                     </style>
                     <div class="actions">
-                        <a href="copy">Copy</a>
-                        <a href="new_tab">Open in Tab</a>
+                        <a href="copy" class="copy-btn">{copy_text}</a>
+                        <a href="new_tab" class="tab-btn">Open in Tab</a>
                     </div>
                 </body>
-            '''
+            '''.format(copy_style=copy_style, copy_text=copy_text)
 
             # 创建并添加 Phantom
+            # 将当前代码块的索引 i 传递给 handle_phantom_click
             phantom = sublime.Phantom(
                 sublime.Region(insertion_point, insertion_point),
                 content,
                 sublime.LAYOUT_INLINE,
-                on_navigate=lambda href, r=region: self.handle_phantom_click(href, r)
+                on_navigate=lambda href, r=region, idx=i: self.handle_phantom_click(href, r, idx)
             )
             phantoms.append(phantom)
 
@@ -154,7 +175,7 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
 
         return code_blocks
 
-    def handle_phantom_click(self, href, region):
+    def handle_phantom_click(self, href, region, idx):
         # 获取代码内容（排除首尾的 ``` 行）
         lines = self.view.substr(region).split('\n')
         code = '\n'.join(lines[1:-1]) + "\n"
@@ -164,6 +185,20 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
             sublime.set_clipboard(code)
             sublime.status_message("Code copied to clipboard")
 
+            # 1. 将当前代码块标记为已复制，并立即刷新界面
+            self.copied_blocks.add(idx)
+            self.update_phantoms(self.find_code_blocks())
+
+            # 2. 定义一个恢复函数，1.5秒后将按钮状态还原
+            def revert_copy_state():
+                if idx in self.copied_blocks:
+                    self.copied_blocks.remove(idx)
+                    # 确保视图仍然有效时才刷新
+                    if self.view.is_valid():
+                        self.update_phantoms(self.find_code_blocks())
+
+            sublime.set_timeout(revert_copy_state, 1500)
+
         elif href == "new_tab":
             # 在新标签页中打开
             new_view = self.view.window().new_file()
@@ -172,7 +207,7 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
             # 尝试检测并设置语法高亮
             identifier = re.sub(r"^ *`+", "", lines[0]).strip().lower()
 
-            id_syntax_map = [
+            id_syntax_map =[
                 {
                     "identifier": ["md", "markdown", "mdown"],
                     "syntaxes":[
@@ -190,7 +225,7 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
                     ],
                 },
                 {
-                    "identifier": ["html"],
+                    "identifier":["html"],
                     "syntaxes":[
                         "Packages/HTML/HTML.sublime-syntax",
                     ],
@@ -203,7 +238,7 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
                 },
                 {
                     "identifier": ["php"],
-                    "syntaxes": [
+                    "syntaxes":[
                         "Packages/PHP/PHP.sublime-syntax",
                     ],
                 },
@@ -220,7 +255,7 @@ class MarkdownCodeExporter(sublime_plugin.ViewEventListener):
                     ],
                 },
                 {
-                    "identifier": ["sh", "shell"],
+                    "identifier":["sh", "shell"],
                     "syntaxes":[
                         "Packages/ShellScript/Shell-Unix-Generic.sublime-syntax",
                     ],
